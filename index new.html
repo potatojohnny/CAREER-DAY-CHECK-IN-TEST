@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>活动打卡</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", sans-serif;
+        }
+        body {
+            background: #f5f5f5;
+            padding: 15px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .title {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            margin: 10px 0 20px;
+            color: #333;
+        }
+        .banner {
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .input-box {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        .check-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .check-name {
+            font-size: 16px;
+            color: #333;
+        }
+        .check-btn {
+            padding: 8px 16px;
+            background: #1677ff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .check-btn:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+        .tip {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="title" id="activityTitle">活动打卡</h1>
+    <img src="https://picsum.photos/600/300" class="banner" id="activityImg">
+    <input type="text" class="input-box" id="userName" placeholder="请输入姓名/手机号">
+    <div id="checkList"></div>
+    <p class="tip">仅允许在活动现场范围内打卡</p>
+</div>
+
+<script>
+// ====================== 【你可以放心改这里】 ======================
+const config = {
+ title:"China Operations Career Day 打卡",
+  imgUrl:"https://s41.ax1x.com/2026/03/26/peQhoHf.jpg",
+  checkItems:["签到打卡","Metier Sharing打卡","Boss Talk打卡","职场会客厅打卡"],
+  targetLat:31.2276,
+  targetLng:121.4441,
+  distanceLimit:30
+};
+// =================================================================
+
+// 渲染页面
+document.getElementById('activityTitle').innerText = config.title;
+document.getElementById('activityImg').src = config.imgUrl;
+
+const list = document.getElementById('checkList');
+config.checkItems.forEach((name, index) => {
+  const div = document.createElement('div');
+  div.className = 'check-item';
+  div.innerHTML = `
+    <span class="check-name">${name}</span>
+    <button class="check-btn" onclick="checkIn(${index})">立即打卡</button>
+  `;
+  list.appendChild(div);
+});
+
+// 打卡主逻辑（本地存储版，无云端）
+async function checkIn(index) {
+  const userName = document.getElementById('userName').value.trim();
+  if (!userName) {
+    alert("请填写你的欧莱雅邮箱");
+    return;
+  }
+
+  try {
+    // 获取GPS定位
+    const position = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 10000
+      });
+    });
+
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+    const distance = getDistance(lat, lng, config.targetLat, config.targetLng);
+
+    if (distance > config.distanceLimit) {
+      alert(`不在打卡范围！您距离现场 ${Math.round(distance)} 米`);
+      return;
+    }
+
+    // 本地保存打卡记录（测试用）
+    const records = JSON.parse(localStorage.getItem("checkRecords") || "[]");
+    records.push({
+      userName: userName,
+      item: config.checkItems[index],
+      time: new Date().toLocaleString(),
+      distance: distance
+    });
+    localStorage.setItem("checkRecords", JSON.stringify(records));
+
+    // 按钮变灰
+    const btns = document.querySelectorAll('.check-btn');
+    btns[index].innerText = "已打卡";
+    btns[index].disabled = true;
+
+    alert("✅ 打卡成功（本地测试版）");
+
+  } catch (e) {
+    alert("获取定位失败，请允许权限");
+  }
+}
+
+// 计算距离
+function getDistance(lat1, lng1, lat2, lng2) {
+  const radLat1 = lat1 * Math.PI / 180;
+  const radLat2 = lat2 * Math.PI / 180;
+  const a = radLat1 - radLat2;
+  const b = (lng1 - lng2) * Math.PI / 180;
+  let s = 2 * Math.asin(Math.sqrt(Math.sin(a/2)**2 + Math.cos(radLat1)*Math.cos(radLat2)*Math.sin(b/2)**2));
+  s = s * 6378137;
+  return Math.round(s);
+}
+</script>
+</body>
+</html>
